@@ -1,0 +1,41 @@
+# Reference copy of the unit that actually runs the memory MCP server on the
+# gus droplet, installed at /etc/systemd/system/mcp-server.service.
+#
+# This is documentation, NOT a deployable artifact. deploy.sh deliberately does
+# not install it: the running unit carries Environment= and EnvironmentFile=
+# directives whose values are provisioned on the host and are deliberately
+# absent here, so copying this file over the live one would strip the server's
+# configuration. Edit the unit on the host, then mirror the change back here.
+#
+# Supersedes openclaw-mcp.service, which described a unit name that has been
+# dead for months while this one served production.
+#
+# NOTE: the live unit has no sandboxing. The old openclaw-mcp.service declared
+# NoNewPrivileges, ProtectSystem=strict, ReadWritePaths=/home/openclaw and
+# PrivateTmp, none of which are present on the host today. Reinstating them is
+# worth doing, but it is a change to production behavior rather than a
+# documentation fix, so it is left out here on purpose.
+
+[Unit]
+Description=OpenClaw Memory MCP Server
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=openclaw
+Group=openclaw
+WorkingDirectory=/home/openclaw/mcp
+
+# Provisioned on the host, values intentionally not committed:
+#   Environment=<one variable, set inline on the unit>
+#   EnvironmentFile=<path to the env file holding OPENAI_API_KEY et al>
+# See DEPLOY-NOTES.md for which variables the server requires.
+
+ExecStart=/usr/bin/node /home/openclaw/mcp/mcp-server.mjs
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
