@@ -6,7 +6,7 @@
   "main": "mcp-server.mjs",
   "scripts": {
     "start": "node mcp-server.mjs",
-    "test": "node --test test/"
+    "test": "node --test \"test/**/*.test.mjs\""
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
