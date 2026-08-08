@@ -1,7 +1,7 @@
 // MCP tool handler implementations
 import { pool, getEmbedding, extractAndLinkEntities } from './db.mjs';
 import { readFile, readdir, stat } from 'fs/promises';
-import { join, resolve, relative } from 'path';
+import { join, resolve, relative, isAbsolute, sep } from 'path';
 
 const WORKSPACE_ROOT = '/home/openclaw/.openclaw/workspace';
 
@@ -147,10 +147,13 @@ export async function entitySearch(args) {
 // File operations
 // ============================================
 
-function safePath(requestedPath) {
-  // Resolve to absolute, ensure it's within workspace
+export function safePath(requestedPath) {
+  // Containment has to be checked per path segment, not as a string prefix:
+  // startsWith(WORKSPACE_ROOT) also accepts siblings like `${WORKSPACE_ROOT}-evil`.
+  // An empty relative path means the workspace root itself, which is allowed.
   const resolved = resolve(WORKSPACE_ROOT, requestedPath);
-  if (!resolved.startsWith(WORKSPACE_ROOT)) {
+  const rel = relative(WORKSPACE_ROOT, resolved);
+  if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
     throw new Error('Path outside workspace not allowed');
   }
   return resolved;
