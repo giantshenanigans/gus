@@ -10,11 +10,12 @@
 # Supersedes openclaw-mcp.service, which described a unit name that has been
 # dead for months while this one served production.
 #
-# NOTE: the live unit has no sandboxing. The old openclaw-mcp.service declared
-# NoNewPrivileges, ProtectSystem=strict, ReadWritePaths=/home/openclaw and
-# PrivateTmp, none of which are present on the host today. Reinstating them is
-# worth doing, but it is a change to production behavior rather than a
-# documentation fix, so it is left out here on purpose.
+# SANDBOXING lives in a drop-in, not here: mcp-server.service.d/hardening.conf,
+# kept alongside this file and installed to
+# /etc/systemd/system/mcp-server.service.d/. It restores the four directives the
+# old openclaw-mcp.service declared but never actually applied, so `systemctl
+# show` on the host reports more than this file alone describes. Applied and
+# verified 2026-08-08.
 
 [Unit]
 Description=OpenClaw Memory MCP Server
