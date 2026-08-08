@@ -15,7 +15,7 @@ import { z } from 'zod';
 
 import { loadTokens, authenticateRequest } from './auth.mjs';
 import { pool } from './db.mjs';
-import { memorySearch, memorySave, entitySearch } from './tools.mjs';
+import { memorySearch, memorySave, entitySearch, fileRead, fileList } from './tools.mjs';
 
 // ============================================
 // Config
@@ -117,6 +117,30 @@ function createMcpServer() {
     }
   );
 
+  server.tool(
+    'file_read',
+    'Read a file from the shared workspace. Use for detailed docs referenced by memory entries.',
+    {
+      path: z.string().describe('Path relative to workspace root'),
+    },
+    async (args) => {
+      const result = await fileRead(args);
+      return { content: [{ type: 'text', text: result.content }] };
+    }
+  );
+
+  server.tool(
+    'file_list',
+    'List files and directories in the shared workspace.',
+    {
+      path: z.string().optional().default('.').describe('Directory path relative to workspace root'),
+    },
+    async (args) => {
+      const result = await fileList(args);
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
   return server;
 }
 
@@ -137,13 +161,18 @@ const httpServer = createServer((req, res) => {
     return;
   }
 
+  // Log incoming requests
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} from ${req.socket.remoteAddress}`);
+
   // Auth check
   const user = authenticateRequest(req);
   if (!user) {
+    console.log(`[${new Date().toISOString()}] AUTH FAILED - no valid token`);
     res.writeHead(401, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Unauthorized' }));
     return;
   }
+  console.log(`[${new Date().toISOString()}] AUTH OK - user: ${user.identifier}`);
 
   // Buffer request body (Node.js http doesn't populate req.body)
   const chunks = [];

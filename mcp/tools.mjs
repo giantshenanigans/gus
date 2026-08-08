@@ -1,5 +1,9 @@
 // MCP tool handler implementations
 import { pool, getEmbedding, extractAndLinkEntities } from './db.mjs';
+import { readFile, readdir, stat } from 'fs/promises';
+import { join, resolve, relative } from 'path';
+
+const WORKSPACE_ROOT = '/home/openclaw/.openclaw/workspace';
 
 export async function memorySearch(args, userIdentifier) {
   const { query, limit = 5, tags, entity } = args;
@@ -137,4 +141,56 @@ export async function entitySearch(args) {
   );
 
   return rows;
+}
+
+// ============================================
+// File operations
+// ============================================
+
+function safePath(requestedPath) {
+  // Resolve to absolute, ensure it's within workspace
+  const resolved = resolve(WORKSPACE_ROOT, requestedPath);
+  if (!resolved.startsWith(WORKSPACE_ROOT)) {
+    throw new Error('Path outside workspace not allowed');
+  }
+  return resolved;
+}
+
+export async function fileRead(args) {
+  const { path: reqPath } = args;
+  const fullPath = safePath(reqPath);
+  
+  const content = await readFile(fullPath, 'utf-8');
+  return {
+    path: relative(WORKSPACE_ROOT, fullPath),
+    content,
+  };
+}
+
+export async function fileList(args) {
+  const { path: reqPath = '.' } = args;
+  const fullPath = safePath(reqPath);
+  
+  const entries = await readdir(fullPath, { withFileTypes: true });
+  const results = [];
+  
+  for (const entry of entries) {
+    const entryPath = join(fullPath, entry.name);
+    const stats = await stat(entryPath);
+    results.push({
+      name: entry.name,
+      type: entry.isDirectory() ? 'directory' : 'file',
+      size: stats.size,
+      modified: stats.mtime.toISOString(),
+    });
+  }
+  
+  return {
+    path: relative(WORKSPACE_ROOT, fullPath) || '.',
+    entries: results.sort((a, b) => {
+      // Directories first, then alphabetical
+      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    }),
+  };
 }
